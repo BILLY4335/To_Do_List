@@ -1,60 +1,95 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.js'
+import "./style.css"
 
-document.querySelector('#app').innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+/* ================= 1. STATO ================= */
+const CHIAVE = "todo-tasks"
 
-<div class="ticks"></div>
+function caricaStato() {
+  const testo = localStorage.getItem(CHIAVE)
+  if (testo === null) return []
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
+  try {
+    const dati = JSON.parse(testo)
+    // difesa in più: deve essere proprio un array
+    return Array.isArray(dati) ? dati : []
+  } catch (errore) {
+    console.error("Dati salvati non validi, riparto da zero:", errore.message)
+    return []
+  }
+}
+
+let tasks = caricaStato()
+
+/* ================= 2. RIFERIMENTI ================= */
+const lista = document.querySelector("#lista")
+const info = document.querySelector("#info")
+const form = document.querySelector("#form-task")
+const campo = document.querySelector("#campo-task")
+
+/* ================= 3. PERSISTENZA ================= */
+function salvaStato() {
+  localStorage.setItem(CHIAVE, JSON.stringify(tasks))
+}
+
+/* ================= 4. VIEW ================= */
+function render() {
+  lista.innerHTML = tasks
+    .map(t => `
+      <li class="${t.completed ? "fatto" : ""}" data-id="${t.id}">
+        <span class="titolo">${t.title}</span>
+        <button class="elimina" data-id="${t.id}">×</button>
       </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+    `)
+    .join("")
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+  const completati = tasks.filter(t => t.completed).length
+  info.textContent = `Totali: ${tasks.length} · Completati: ${completati}`
+}
 
-setupCounter(document.querySelector('#counter'))
+/* ================= 5. AZIONI ================= */
+function addTask(title) {
+  const pulito = title.trim()
+  if (pulito === "") return
+
+  tasks = [...tasks, { id: Date.now(), title: pulito, completed: false }]
+  salvaStato()
+  render()
+}
+
+function toggleTask(id) {
+  tasks = tasks.map(t =>
+    t.id === id ? { ...t, completed: !t.completed } : t
+  )
+  salvaStato()
+  render()
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id)
+  salvaStato()
+  render()
+}
+
+/* ================= 6. EVENTI ================= */
+form.addEventListener("submit", (evento) => {
+  evento.preventDefault()
+  addTask(campo.value)
+  campo.value = ""
+  campo.focus()
+})
+
+lista.addEventListener("click", (evento) => {
+  const elemento = evento.target
+
+  if (elemento.classList.contains("elimina")) {
+    deleteTask(Number(elemento.dataset.id))
+    return
+  }
+
+  const riga = elemento.closest("li")
+  if (riga) {
+    toggleTask(Number(riga.dataset.id))
+  }
+})
+
+/* ================= 7. AVVIO ================= */
+render()
